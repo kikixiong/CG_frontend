@@ -290,6 +290,7 @@
       </div>
       <div id="batchRows"></div>
     </div>
+    <p style="font-size:11px;color:#aaa;margin-top:10px;line-height:1.5;text-align:center;">By submitting feedback, you agree that your responses may be used to improve this tool. No personal data is collected.</p>
     <div class="export-row">
       <button class="export-btn" onclick="window.open(FEEDBACK_API+'/feedback/export?format=csv')">⬇ Export CSV</button>
       <button class="export-btn" onclick="window.open(FEEDBACK_API+'/feedback/export?format=json')">⬇ Export JSON</button>
@@ -353,12 +354,12 @@
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style="vertical-align:-2px;"><path d="M4 1h8l3 3v11H1V1h3zm1 1v2h6V2H5zm-3 4v8h12V6H2zm2 2h8v1H4V8zm0 2h6v1H4v-1z"/></svg>
         Paper
       </a>
-      <a href="https://huggingface.co/spaces/credi-net/CrediNet" target="_blank" class="footer-link">
+      <a href="https://huggingface.co/credi-net" target="_blank" class="footer-link">
         🤗 HuggingFace
       </a>
     </div>
     <div class="footer-copy">
-      CrediGraph &mdash; A research project by <a href="https://mila.quebec" target="_blank" style="color:#666;text-decoration:none;border-bottom:1px dashed #ccc;">Mila</a>, Universit&eacute; de Montr&eacute;al, McGill University, and the University of Oxford.<br>
+      CrediGraph &mdash; A research project by Mila, Universit&eacute; de Montr&eacute;al, McGill University, and the University of Oxford.<br>
       Contact: <a href="mailto:credigraph@gmail.com" style="color:#666;text-decoration:none;border-bottom:1px dashed #ccc;">credigraph@gmail.com</a> &middot; &copy; 2025
     </div>
   </footer>
@@ -597,6 +598,34 @@ function submitFeedback(domain, vote, el) {
   }).then(() => showToast('Feedback saved!')).catch(() => {});
 }
 
+function submitBatchFeedback(domain, prediction, vote, el) {
+  el.style.transform='scale(1.4)'; setTimeout(()=>el.style.transform='',200);
+  fetch(`${FEEDBACK_API}/feedback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      domain, vote, model_prediction: prediction,
+      user_id: currentUser?.id || null,
+      timestamp: new Date().toISOString()
+    })
+  }).then(() => showToast('Feedback saved!')).catch(() => {});
+}
+
+function submitBatchCorrection(domain, prediction, correction, el) {
+  const vote = (correction === 'credible' && prediction === 'credible') || (correction === 'not_credible' && prediction !== 'credible') ? 'up' : 'down';
+  el.style.background = correction === 'credible' ? '#f0fdf4' : '#fef2f2';
+  el.style.borderColor = correction === 'credible' ? '#22c55e' : '#ef4444';
+  fetch(`${FEEDBACK_API}/feedback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      domain, vote, correction, model_prediction: prediction,
+      user_id: currentUser?.id || null,
+      timestamp: new Date().toISOString()
+    })
+  }).then(() => showToast('Correction saved!')).catch(() => {});
+}
+
 // --- Batch query ---
 async function simulateBatch() {
   const text = document.getElementById('batchInput').value.trim();
@@ -622,7 +651,7 @@ async function simulateBatch() {
       const row = container.children[i];
       const c = result.classification === 'credible';
       row.className = 'trow new-row';
-      row.innerHTML = `<span class="col-domain">${result.domain}</span><span class="col-class"><span class="${c?'tag-credible':'tag-not-credible'}">${c?'Credible':'Not Credible'}</span></span><span class="col-fb"><span class="mini-fb"><span onclick="submitFeedback('${result.domain}','up',this)">👍</span> <span onclick="submitFeedback('${result.domain}','down',this)">👎</span></span></span>`;
+      row.innerHTML = `<span class="col-domain">${result.domain}</span><span class="col-class"><span class="${c?'tag-credible':'tag-not-credible'}">${c?'Credible':'Not Credible'}</span></span><span class="col-fb"><span class="mini-fb"><span onclick="submitBatchFeedback('${result.domain}','${result.classification}','up',this)">👍</span> <span onclick="submitBatchFeedback('${result.domain}','${result.classification}','down',this)">👎</span> <span onclick="submitBatchCorrection('${result.domain}','${result.classification}','credible',this)" style="font-size:11px;cursor:pointer;padding:1px 6px;border:1px solid #e5e5e5;border-radius:4px;">✅</span> <span onclick="submitBatchCorrection('${result.domain}','${result.classification}','not_credible',this)" style="font-size:11px;cursor:pointer;padding:1px 6px;border:1px solid #e5e5e5;border-radius:4px;">❌</span></span></span>`;
       addHistory(result);
     } catch (err) {
       const row = container.children[i];
